@@ -1,19 +1,12 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import {
-  useFetcher,
-  Link,
-  useLoaderData,
-  useLocation,
-  useNavigation,
-} from "@remix-run/react";
+import { useFetcher, useLoaderData } from "@remix-run/react";
 import { getItems } from "~/utils/backend.server";
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 
 import debounce from "debounce";
 
 const LIMIT = 30;
-const DATA_OVERSCAN = 40;
 
 type Item = {
   id: string;
