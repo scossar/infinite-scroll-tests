@@ -1,6 +1,11 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useFetcher, useLoaderData, useNavigate } from "@remix-run/react";
+import {
+  Outlet,
+  useFetcher,
+  useLoaderData,
+  useNavigate,
+} from "@remix-run/react";
 import type { ShouldRevalidateFunction } from "@remix-run/react";
 import {
   createRef,
@@ -40,7 +45,6 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
   nextParams,
   nextUrl,
 }) => {
-  console.log(currentParams);
   return defaultShouldRevalidate;
 };
 
@@ -54,14 +58,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return json({ items });
 }
 
-export default function Infinite() {
-  console.log("Infinite component rendered");
+export default function InfiniteWithIds() {
+  //console.log("infinte-with-item-ids-rendered");
   const data = useLoaderData<typeof loader>();
   const fetcher = useFetcher<FetcherData>();
+  const idFetcher = useFetcher();
   const [items, setItems] = useState(data.items);
   const page = useRef(0);
   let loading = fetcher.state === "loading";
   const navigate = useNavigate();
+  const clientHeightRef = useRef(0);
+  // const [navigated, setNavigated] = useState(false);
+  const navigatedRef = useRef(false);
 
   const itemRefs = useRef<React.RefObject<HTMLDivElement>[]>([]);
   itemRefs.current = items.map(
@@ -69,7 +77,6 @@ export default function Infinite() {
   );
 
   const renderedItems = useMemo(() => {
-    console.log("calling rerenderedItems");
     return items.map((item) => (
       <div
         key={item.id}
@@ -92,14 +99,21 @@ export default function Infinite() {
   const debouncedHandleScroll = debounce(
     (scrollHeight: number, scrollTop: number, clientHeight: number) => {
       const itemId = getTopItemId(clientHeight);
-      if (itemId) {
-        navigate(`/infinite/${itemId}`, { replace: true });
+
+      if (itemId && navigatedRef.current === false) {
+        //setNavigated(true);
+        navigatedRef.current = true;
+        console.log("this shouldn't get called more than once");
+        navigate(`/infinite-with-item-ids/${itemId}`, { replace: true });
+        // navigate(`?itemId=${itemId}`, { replace: true });
+      }
+      if (itemId && navigatedRef.current) {
       }
 
       const scrolledToBottom = scrollTop + 10 + clientHeight >= scrollHeight;
       if (scrolledToBottom && fetcher.state === "idle") {
         page.current += 1;
-        fetcher.load(`/infinite?page=${page.current}`);
+        fetcher.load(`/infinite-with-item-ids?page=${page.current}`);
       }
     },
     500
@@ -123,6 +137,7 @@ export default function Infinite() {
     const scrollHeight = currentTarget.scrollHeight;
     const scrollTop = currentTarget.scrollTop;
     const clientHeight = currentTarget.clientHeight;
+    clientHeightRef.current = clientHeight;
     debouncedHandleScroll(scrollHeight, scrollTop, clientHeight);
   }
 
@@ -150,6 +165,7 @@ export default function Infinite() {
           Loading
         </div>
       </div>
+      <Outlet />
     </div>
   );
 }
