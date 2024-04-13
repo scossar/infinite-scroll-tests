@@ -1,6 +1,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useFetcher, useLoaderData } from "@remix-run/react";
+import { useFetcher, useLoaderData, useNavigate } from "@remix-run/react";
+import type { ShouldRevalidateFunction } from "@remix-run/react";
 import { createRef, useCallback, useEffect, useRef, useState } from "react";
 
 import type { Item, Items } from "~/utils/backend.server";
@@ -20,21 +21,40 @@ type FetcherData = {
 
 type ItemRefs = HTMLDivElement[];
 
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+  actionResult,
+  currentParams,
+  currentUrl,
+  defaultShouldRevalidate,
+  formAction,
+  formData,
+  formEncType,
+  formMethod,
+  nextParams,
+  nextUrl,
+}) => {
+  console.log(currentParams);
+  return defaultShouldRevalidate;
+};
+
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const page = Number(url.searchParams.get("page")) || 0;
   const start = page * LIMIT;
   const items = await getItems({ start: start, limit: LIMIT });
+  console.log("infinte loader called");
 
   return json({ items });
 }
 
 export default function Infinite() {
+  console.log("Infinite component rendered");
   const data = useLoaderData<typeof loader>();
   const fetcher = useFetcher<FetcherData>();
   const [items, setItems] = useState(data.items);
   const page = useRef(0);
   let loading = fetcher.state === "loading";
+  const navigate = useNavigate();
 
   const itemRefs = useRef<React.RefObject<HTMLDivElement>[]>([]);
   itemRefs.current = items.map(
@@ -52,7 +72,7 @@ export default function Infinite() {
     (scrollHeight: number, scrollTop: number, clientHeight: number) => {
       const itemId = getTopItemId(clientHeight);
       if (itemId) {
-        console.log(`itemId: ${itemId}`);
+        navigate(`/infinite/${itemId}`, { replace: true });
       }
 
       const scrolledToBottom = scrollTop + 10 + clientHeight >= scrollHeight;
@@ -61,7 +81,7 @@ export default function Infinite() {
         fetcher.load(`/infinite?page=${page.current}`);
       }
     },
-    200
+    500
   );
 
   function getTopItemId(clientHeight: number): string | null {
@@ -83,17 +103,6 @@ export default function Infinite() {
     const scrollTop = currentTarget.scrollTop;
     const clientHeight = currentTarget.clientHeight;
     debouncedHandleScroll(scrollHeight, scrollTop, clientHeight);
-
-    /* const visibleRef = itemRefs.current.find((ref) => {
-      if (ref.current) {
-        const rect = ref.current.getBoundingClientRect();
-        return rect.top >= 0 && rect.bottom <= clientHeight;
-      }
-      return false;
-    });
-    if (visibleRef && visibleRef.current) {
-      console.log("Visible Item ID:", visibleRef.current.dataset.id);
-    } */
   }
 
   return (
