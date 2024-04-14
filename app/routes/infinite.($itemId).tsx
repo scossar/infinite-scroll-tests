@@ -2,31 +2,12 @@ import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useFetcher, useLoaderData, useNavigate } from "@remix-run/react";
 import type { ShouldRevalidateFunction } from "@remix-run/react";
-import {
-  createRef,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { createRef, useEffect, useMemo, useRef, useState } from "react";
 
 import type { Item, Items } from "~/utils/backend.server";
 import { getItems } from "~/utils/backend.server";
 
 import debounce from "debounce";
-
-const LIMIT = 60;
-
-/**
- * imported from backend.server.ts
- * type Item = {id: string; value: string;};
- */
-type FetcherData = {
-  items: Items;
-};
-
-type ItemRefs = HTMLDivElement[];
 
 export const shouldRevalidate: ShouldRevalidateFunction = ({
   actionResult,
@@ -40,22 +21,34 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
   nextParams,
   nextUrl,
 }) => {
-  console.log(currentParams);
+  //return defaultShouldRevalidate;
+  console.log("should revalidate");
+
   return defaultShouldRevalidate;
 };
 
-export async function loader({ request }: LoaderFunctionArgs) {
+const LIMIT = 60;
+
+type FetcherData = {
+  items: Items;
+};
+
+export async function loader({ params, request }: LoaderFunctionArgs) {
+  console.log("in the loader");
+  console.log(`referrer: ${request.referrer}`);
   const url = new URL(request.url);
   const page = Number(url.searchParams.get("page")) || 0;
+
+  const itemId = params?.itemId;
+  console.log(`itemId: ${itemId}`);
+
   const start = page * LIMIT;
   const items = await getItems({ start: start, limit: LIMIT });
-  console.log("infinte loader called");
 
   return json({ items });
 }
 
 export default function Infinite() {
-  console.log("Infinite component rendered");
   const data = useLoaderData<typeof loader>();
   const fetcher = useFetcher<FetcherData>();
   const [items, setItems] = useState(data.items);
@@ -69,7 +62,6 @@ export default function Infinite() {
   );
 
   const renderedItems = useMemo(() => {
-    console.log("calling rerenderedItems");
     return items.map((item) => (
       <div
         key={item.id}
