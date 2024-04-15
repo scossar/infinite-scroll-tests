@@ -4,12 +4,17 @@ export type Item = {
 };
 export type Items = Item[];
 
-const items = (global.__items =
+/*const items = (global.__items =
   global.__items ??
-  Array.from({ length: 50_000 }, (_, i) => ({
+  Array.from({ length: 500 }, (_, i) => ({
     id: i.toString(),
     value: `Item ${i}`,
-  })));
+  })));*/
+
+const testItems = Array.from({ length: 500 }, (_, i) => ({
+  id: i.toString(),
+  value: `Item ${i}`,
+}));
 
 export async function getItems({
   start,
@@ -20,7 +25,7 @@ export async function getItems({
 }) {
   return new Promise<Items>((resolve) => {
     setTimeout(() => {
-      resolve(items.slice(start, start + limit));
+      resolve(testItems.slice(start, start + limit));
     }, 500);
   });
 }
@@ -34,8 +39,8 @@ export async function getItemsFrom({
 }) {
   return new Promise<Items>((resolve) => {
     setTimeout(() => {
-      let index = items.findIndex((i) => i.id === after);
-      resolve(items.slice(index, index + limit));
+      let index = testItems.findIndex((i) => i.id === after);
+      resolve(testItems.slice(index, index + limit));
     }, 500);
   });
 }
@@ -43,7 +48,14 @@ export async function getItemsFrom({
 export async function getIndexFor({ id }: { id: string }) {
   return new Promise<number>((resolve) => {
     setTimeout(() => {
-      resolve(items.findIndex((i) => (i.id = id)));
+      let index = testItems.findIndex((item) => {
+        let result = item.id === id;
+        if (result) {
+        }
+        return result;
+      });
+
+      resolve(index);
     }, 500);
   });
 }
@@ -58,7 +70,7 @@ export async function getItemsPaginated({
   const start = page * limit;
   return new Promise<Items>((resolve) => {
     setTimeout(() => {
-      resolve(items.slice(start, start + limit));
+      resolve(testItems.slice(start, start + limit));
     }, 500);
   });
 }
@@ -66,7 +78,7 @@ export async function getItemsPaginated({
 export async function countItems() {
   return new Promise<number>((resolve) => {
     setTimeout(() => {
-      resolve(items.length);
+      resolve(testItems.length);
     }, 500);
   });
 }

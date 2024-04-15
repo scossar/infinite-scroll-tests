@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { Link, useFetcher, useLoaderData } from "@remix-run/react";
+import { useFetcher, useLoaderData } from "@remix-run/react";
 import { createRef, useEffect, useMemo, useRef, useState } from "react";
 
 import type { Item, Items } from "~/utils/backend.server";
@@ -15,39 +15,34 @@ type FetcherData = {
   items: Items;
 };
 
-export async function loader({ params, request }: LoaderFunctionArgs) {
+export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
-  //const page = Number(url.searchParams.get("page")) || 0;
-  // this approach will lead to duplicate keys. Stick with the page approach,
-  // but start at the page that contains the last seen id.
-  // allow for something like last_seen to be used as the starting point,
-  // but grab the page that contains the last_seen
-  const page = Number(url.searchParams.get("page")) || 0;
-  const start = page * LIMIT;
+  let page = Number(url.searchParams.get("page")) || 0;
+  const lastSeenId = url.searchParams.get("itemId") || null;
+  if (lastSeenId && page === 0) {
+    const lastSeenIndex = await getIndexFor({ id: lastSeenId });
+    page = Math.floor(lastSeenIndex / LIMIT);
+  }
 
+  const start = page * LIMIT;
   const items = await getItems({ start, limit: LIMIT });
 
-  return json({ items });
+  return json({ items, fromId: lastSeenId, deliveredPage: page });
 }
 
 export default function InfiniteWithVariableStart() {
   const data = useLoaderData<typeof loader>();
+  let fromId = data?.fromId;
   const fetcher = useFetcher<FetcherData>();
   const [items, setItems] = useState(data.items);
   const page = useRef(0);
+  const backPage = useRef(0);
   const lastSeen = useRef("0");
+  const deliveredPage = data.deliveredPage;
   const loading = fetcher.state === "loading";
-  const [copiedItemId, setCopiedItemId] = useState("");
-
-  const handleCopy = async (url: string, itemId: string) => {
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopiedItemId(itemId);
-      setTimeout(() => setCopiedItemId(""), 2000);
-    } catch (err) {
-      console.error("Error copying link to clipboard", err);
-    }
-  };
+  const dirRef = useRef("forward");
+  const itemsPrepandedRef = useRef(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const itemRefs = useRef<React.RefObject<HTMLDivElement>[]>([]);
   itemRefs.current = items.map(
@@ -64,15 +59,31 @@ export default function InfiniteWithVariableStart() {
       >
         <p>{item.value}</p>
         <CopyButton
-          url={`http://localhost:/5173/infinite-with-variable-start?itemId=${item.id}`}
+          url={`http://localhost:5173/infinite-with-variable-start?itemId=${item.id}`}
         />
       </div>
     ));
   }, [items, itemRefs]);
 
   useEffect(() => {
+    if (
+      scrollRef.current &&
+      dirRef.current === "backward" &&
+      itemsPrepandedRef.current === true
+    ) {
+      // this does something, it should only happen when new items have been loaded though.
+      scrollRef.current.scrollTop += scrollRef.current.clientHeight;
+      itemsPrepandedRef.current = false;
+      scrollRef.current.scrollIntoView;
+    }
+  }, [items]);
+
+  useEffect(() => {
     if (fetcher?.data && fetcher.data?.items) {
-      const allItems = items.concat(fetcher.data.items);
+      const allItems =
+        dirRef.current === "forward"
+          ? items.concat(fetcher.data.items)
+          : fetcher.data.items.concat(items);
       setItems(allItems);
     }
   }, [fetcher.data?.items]);
@@ -87,9 +98,19 @@ export default function InfiniteWithVariableStart() {
 
       const scrolledToBottom = scrollTop + 10 + clientHeight >= scrollHeight;
       if (scrolledToBottom && fetcher.state === "idle") {
+        // have to be careful here to not redeliver a page that's already been loaded.
         page.current += 1;
-        // no, use page.current or there will be duplicate keys
-        fetcher.load(`/infinite-with-variable-start?page=${page.current}`);
+        dirRef.current = "forward";
+        const nextPage = page.current + deliveredPage;
+        fetcher.load(`/infinite-with-variable-start?page=${nextPage}`);
+      }
+      if (scrollTop === 0 && page.current + deliveredPage > 1) {
+        backPage.current -= 1;
+        dirRef.current = "backward";
+        itemsPrepandedRef.current = true;
+        const previousPage = backPage.current + deliveredPage;
+        fetcher.load(`/infinite-with-variable-start?page=${previousPage}`);
+        // after the data has loaded, the div that contains the item list needs to be scrolled down, ideally to the last seen item
       }
     },
     500
@@ -125,16 +146,17 @@ export default function InfiniteWithVariableStart() {
       </p>
       <div className="relative">
         <div
-          className="overflow-y-scroll max-h-96 mt-6 divide-y divide-slate-300"
+          className="item-content-area overflow-y-scroll max-h-96 mt-6 divide-y divide-slate-300 pb-8"
           onScroll={handleScroll}
+          ref={scrollRef}
         >
           {renderedItems}
         </div>
         <div
           className={`${
             loading
-              ? "transition-opacity opacity-100 duration-100"
-              : "transition-opacity opacity-0 duration-100"
+              ? "transition-opacity opacity-70 duration-200"
+              : "transition-opacity opacity-0 duration-200"
           } loading-message bg-sky-500 text-white text-center py-2 absolute bottom-0 left-0 right-4 rounded-sm`}
         >
           Loading
