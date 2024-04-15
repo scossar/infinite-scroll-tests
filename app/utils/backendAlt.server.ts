@@ -4,14 +4,7 @@ export type Item = {
 };
 export type Items = Item[];
 
-/*const items = (global.__items =
-  global.__items ??
-  Array.from({ length: 500 }, (_, i) => ({
-    id: i.toString(),
-    value: `Item ${i}`,
-  })));*/
-
-const testItems = Array.from({ length: 500 }, (_, i) => ({
+const localItems = Array.from({ length: 500 }, (_, i) => ({
   id: i.toString(),
   value: `Item ${i}`,
 }));
@@ -25,7 +18,7 @@ export async function getItems({
 }) {
   return new Promise<Items>((resolve) => {
     setTimeout(() => {
-      resolve(testItems.slice(start, start + limit));
+      resolve(localItems.slice(start, start + limit));
     }, 500);
   });
 }
@@ -39,8 +32,8 @@ export async function getItemsFrom({
 }) {
   return new Promise<Items>((resolve) => {
     setTimeout(() => {
-      let index = testItems.findIndex((i) => i.id === after);
-      resolve(testItems.slice(index, index + limit));
+      let index = localItems.findIndex((i) => i.id === after);
+      resolve(localItems.slice(index, index + limit));
     }, 500);
   });
 }
@@ -48,7 +41,7 @@ export async function getItemsFrom({
 export async function getIndexFor({ id }: { id: string }) {
   return new Promise<number>((resolve) => {
     setTimeout(() => {
-      let index = testItems.findIndex((item) => {
+      let index = localItems.findIndex((item) => {
         let result = item.id === id;
         if (result) {
         }
@@ -70,7 +63,7 @@ export async function getItemsPaginated({
   const start = page * limit;
   return new Promise<Items>((resolve) => {
     setTimeout(() => {
-      resolve(testItems.slice(start, start + limit));
+      resolve(localItems.slice(start, start + limit));
     }, 500);
   });
 }
@@ -78,7 +71,7 @@ export async function getItemsPaginated({
 export async function countItems() {
   return new Promise<number>((resolve) => {
     setTimeout(() => {
-      resolve(testItems.length);
+      resolve(localItems.length);
     }, 500);
   });
 }
