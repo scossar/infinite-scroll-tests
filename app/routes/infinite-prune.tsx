@@ -7,13 +7,17 @@ import { useEffect, useRef, useState } from "react";
 
 import type { Items } from "~/utils/backendAlt.server";
 import { getItems, getIndexFor } from "~/utils/backendAlt.server";
-import CopyButton from "~/components/CopyButton";
 
-const LIMIT = 10;
+const LIMIT = 50;
+
+type PagedItems = {
+  [page: string]: Items;
+};
 
 type FetcherData = {
-  items: Items;
+  pagedItems: PagedItems;
 };
+
 type LoadingDirection = "forward" | "backward";
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -41,27 +45,56 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const start = page * LIMIT;
   const items = await getItems({ start, limit: LIMIT });
+  const pagedItems = {
+    [page]: items,
+  };
 
-  return json({ items, initialPage: page });
+  return json({ pagedItems, initialPage: page });
 }
 
-export default function StartFromPage() {
-  const { items, initialPage } = useLoaderData<typeof loader>();
+export default function InfinitePrune() {
+  const { pagedItems, initialPage } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<FetcherData>();
-  const [currentItems, setCurrentItems] = useState(items);
-  const forwardPageRef = useRef(0);
-  const backwardPageRef = useRef(0);
-  const loadingDirRef = useRef<LoadingDirection>("forward");
+  const [pages, setPages] = useState(pagedItems);
+  const forwardPageRef = useRef(0); // tracks how many pages forward have been requested
+  const backwardPageRef = useRef(0); // tracks how many pages backward have been requested
+  const loadingDirRef = useRef<LoadingDirection>("forward"); // "forward" or "backward", needed to adjust forward/backward pageRefs in prune function
 
   useEffect(() => {
-    if (fetcher?.data && fetcher.data?.items) {
-      setCurrentItems(
-        loadingDirRef.current === "forward"
-          ? currentItems.concat(fetcher.data.items)
-          : fetcher.data.items.concat(currentItems)
-      );
+    if (fetcher?.data && fetcher.data?.pagedItems) {
+      let summedPages = { ...pages, ...fetcher.data.pagedItems };
+      summedPages = prunePages(summedPages);
+      setPages(summedPages);
     }
-  }, [fetcher.data?.items]);
+  }, [fetcher.data?.pagedItems]);
+
+  const prunePages = (pages: PagedItems) => {
+    let pruned;
+    if (Object.keys(pages).length > 5) {
+      if (loadingDirRef.current === "forward") {
+        pruned = removeFirstPage(pages);
+        backwardPageRef.current += 1;
+      } else {
+        pruned = removeLastPage(pages);
+        forwardPageRef.current -= 1;
+      }
+    }
+
+    return pruned ? pruned : pages;
+  };
+
+  function removeFirstPage(pages: PagedItems) {
+    const [firstKey, ...restKeys] = Object.keys(pages);
+    const { [firstKey]: _, ...prunedPages } = pages; // _ is a discard variable for the first property
+    return prunedPages;
+  }
+
+  function removeLastPage(pages: PagedItems) {
+    const keys = Object.keys(pages);
+    const lastKey = keys[keys.length - 1];
+    const { [lastKey]: _, ...prunedPages } = pages; // Exclude the last property
+    return prunedPages;
+  }
 
   const debouncedHandleScroll = debounce(
     (scrollHeight: number, scrollTop: number, clientHeight: number) => {
@@ -72,17 +105,17 @@ export default function StartFromPage() {
         const nextPage = initialPage
           ? initialPage + forwardPageRef.current
           : forwardPageRef.current;
-        fetcher.load(`/start-from-page?page=${nextPage}`);
+        fetcher.load(`/infinite-prune?page=${nextPage}`);
       }
       if (scrollTop === 0 && fetcher.state === "idle") {
-        loadingDirRef.current = "backward";
         const tryPageFromRef = backwardPageRef.current - 1;
         const previousPage = initialPage
           ? initialPage + tryPageFromRef
           : tryPageFromRef;
         if (previousPage >= 0) {
+          loadingDirRef.current = "backward";
           backwardPageRef.current -= 1;
-          fetcher.load(`/start-from-page?page=${previousPage}`);
+          fetcher.load(`/infinite-prune?page=${previousPage}`);
         }
       }
     }
@@ -98,18 +131,19 @@ export default function StartFromPage() {
 
   return (
     <div className="max-w-screen-sm mx-auto">
-      <h1>Start From Page</h1>
+      <h1>Infinite Prune</h1>
       <div className="relative">
         <div
           className="overflow-y-scroll max-h-96 mt-6 divide-y divide-slate-300"
           onScroll={handleScroll}
         >
-          {currentItems?.map((item) => (
-            <div key={item.id} className="px-3 py-6">
-              <p>{item.value}</p>
-              <CopyButton
-                url={`http://localhost:5173/start-from-page?lastSeenId=${item.id}`}
-              />
+          {Object.entries(pages).map(([page, items]) => (
+            <div key={page}>
+              {items.map((item) => (
+                <div key={item.id} className="px-3 py-6">
+                  <p>{item.value}</p>
+                </div>
+              ))}
             </div>
           ))}
         </div>
