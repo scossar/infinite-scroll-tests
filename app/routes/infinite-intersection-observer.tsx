@@ -25,7 +25,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return json({ items });
 }
 
-export default function InfiniteIntersectionalObserver() {
+export default function InfiniteIntersectionObserver() {
   const data = useLoaderData<typeof loader>();
   const fetcher = useFetcher<FetcherData>();
   const [items, setItems] = useState(data.items);
