@@ -15,10 +15,12 @@
     "@remix-run/react": "^2.8.1",
     "@remix-run/serve": "^2.8.1",
     "@tanstack/react-virtual": "^3.2.1",
+    "@types/react-window": "^1.8.8",
     "debounce": "^2.0.0",
     "isbot": "^4.1.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-window": "^1.8.10"
   },
   "devDependencies": {
     "@remix-run/dev": "^2.8.1",
