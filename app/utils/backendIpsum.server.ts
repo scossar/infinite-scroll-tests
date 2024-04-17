@@ -15,7 +15,7 @@ function selectSentence(sentences: string[]) {
 }
 
 function buildItem() {
-  const itemLength = Math.floor(Math.random() * 5) + 1;
+  const itemLength = Math.floor(Math.random() * 6) + 1;
   let result = [];
   for (let i = 0; i < itemLength; i++) {
     result.push(selectSentence(sentences));

@@ -57,8 +57,7 @@ export default function VariableSizeListTest() {
       setPages(summedPages);
 
       const newHeights = [...itemHeights];
-      // could this be optimized? The flattened data isn't actually being used, it's just supply
-      // a way of pushing the correct number of items to the itemHeights array (I think)
+      // This could be optimized a bit.
       const additionalItems = Object.values(fetcher.data.pagedItems).flat();
       additionalItems.forEach(() => newHeights.push(200)); // 200 is being set as the default height
       setItemHeights(newHeights);
@@ -67,12 +66,25 @@ export default function VariableSizeListTest() {
 
   const listRef = useRef<VariableSizeList>(null);
   const [itemHeights, setItemHeights] = useState(Array(itemCount).fill(200));
-  const getRowHeight = (index: number) => itemHeights[index];
+  const getRowHeight = (index: number) => {
+    const itemHeight = itemHeights[index];
+    console.log(`itemHeight: ${itemHeight}`);
+    return itemHeight;
+  };
+
+  // A proof of concept to show that heights can be adjusted. Don't use this!
+  function estimateHeight(text: string, charsPerLine = 40, lineHeight = 20) {
+    const lines = Math.ceil(text.length / charsPerLine);
+    return lines * lineHeight;
+  }
 
   const measureRow = useCallback(
     (node: HTMLDivElement | null, index: number) => {
       if (node !== null) {
-        const height = node.getBoundingClientRect().height;
+        const text = node.innerText;
+        const height = estimateHeight(text);
+        // this will always return 200.
+        //  const height = node.getBoundingClientRect().height;
         if (itemHeights[index] !== height) {
           const newHeights = [...itemHeights];
           newHeights[index] = height;
@@ -105,8 +117,8 @@ export default function VariableSizeListTest() {
   return (
     <div className="max-w-screen-sm mx-auto">
       <List
-        ref={listRef} // What should be used for the ref's type: React.MutableRefObject<T>
-        height={600}
+        ref={listRef}
+        height={800}
         itemCount={itemCount}
         itemSize={getRowHeight}
         estimatedItemSize={200}
